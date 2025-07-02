@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spion-Spiel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background-color: #f4f4f4;
+    }
+    h1 {
+      color: #333;
+    }
+    .hidden {
+      display: none;
+    }
+    .card {
+      background: white;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1rem;
+    }
+    input, select, button, textarea {
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <h1>Spion-Spiel</h1>
+  <div class="card" id="setup">
+    <label>Namen der Spieler (ein Name pro Zeile, leer lassen für Standardnamen):</label>
+    <textarea id="names" rows="5"></textarea>
+
+    <label>Anzahl Spione:</label>
+    <input type="number" id="spies" min="1" value="1" />
+
+    <label>Rundenzeit (Sekunden):</label>
+    <input type="number" id="time" min="10" value="60" />
+
+    <label>Spione erhalten Hinweis?</label>
+    <select id="spyHint">
+      <option value="true">Ja</option>
+      <option value="false">Nein</option>
+    </select>
+
+    <label>Anzahl Spieler:</label>
+    <input type="number" id="playerCount" min="3" value="4" />
+
+    <button onclick="startGame()">Spiel starten</button>
+  </div>
+
+  <div class="card hidden" id="roleReveal">
+    <p id="playerNumber"></p>
+    <button onclick="revealRole()" id="revealButton">Aufdecken</button>
+    <p id="roleText" class="hidden"></p>
+    <button onclick="nextPlayer()" id="nextButton" class="hidden">Nächster Spieler</button>
+  </div>
+
+  <div class="card hidden" id="gameplay">
+    <h2>Das Wort ist: <span id="wordDisplay"></span></h2>
+    <p><strong id="starterInfo"></strong> beginnt mit einem Wort.</p>
+    <p>Diskussion läuft... Zeit: <span id="timer"></span> Sekunden</p>
+    <button onclick="skipTimer()">Runde überspringen</button>
+  </div>
+
+  <div class="card hidden" id="endScreen">
+    <h2>Runde beendet!</h2>
+    <p>Diskutiert, wer die Spione sind!</p>
+    <button onclick="resetGame()">Neue Runde starten</button>
+  </div>
+
+  <script>
+    const wordHints = {
+      "Banane": "lang",
+      "Pyramide": "Wüste",
+      "U-Bahn": "Berlin",
+      "Krankenhaus": "Arzt",
+      "Buch": "Gutenberg",
+      "Strand": "Wasser",
+      "Berg": "Österreich",
+      "Zirkus": "rot-weiß",
+      "Theater": "Zuschauer",
+      "Restaurant": "Pizza",
+      "Penis": "langer",
+      "Stripclub": "bunte Lichter",
+      "Pornhub": "klick",
+      "Brainrot": "zerfressen",
+      "Skibidi Toilet": "bunte Fliesen",
+      "Döner": "Dreh",
+      "Babo": "Chef",
+      "Lit": "hell",
+      "Cringe": "zusammenzucken",
+      "Flexen": "schauen",
+      "Schnappsidee": "blitz",
+      "Yolo": "einmal",
+      "Chillig": "sofa",
+      "Drip": "tropfen",
+      "Swole": "pump",
+      "Snitch": "piep",
+      "Trap": "falle",
+      "Blaze": "rauch",
+      "Shisha": "wolke",
+      "Fame": "spot",
+      "Clout": "wind",
+      "Gucci": "luxus",
+      "Hustle": "rennen",
+      "Woke": "wach",
+      "Ghosten": "durch",
+      "Sus": "dunkel",
+      "Catchen": "werfen",
+      "Tea": "blatt",
+      "Zocken": "knopf",
+      "Swag": "gang",
+      "LMAO": "laut",
+      "Flex": "arm",
+      "High": "wolke",
+      "Dope": "krass",
+      "Crack": "splitter",
+      "Bong": "rohr",
+      "Cop": "mütze",
+      "Hehler": "hand",
+      "Knast": "gitter",
+      "Coke": "weiß",
+      "Meth": "glas",
+      "Dealer": "tür",
+      "Pusher": "schub",
+      "Alki": "becher",
+      "Kiffer": "grün",
+      "Crackhead": "wirr",
+      "NoCap": "hut",
+      "Vibe": "ton",
+      "Snack": "biss",
+      "Cheese": "grinsen",
+      "Hood": "ecke",
+      "Plug": "stecker",
+      "Sauce": "soße",
+      "Karma": "kreis",
+      "Beat": "takt",
+      "Hoodie": "kapuze",
+      "Shots": "klein",
+      "Mary Jane": "freundin",
+      "Joint": "stock",
+      "Kush": "duft",
+      "Dank": "grün",
+      "Zug": "schritt",
+      "Ehrenmann": "hut",
+      "Lauch": "grün",
+      "Spasti": "blöd",
+      "Digger": "schaufel",
+      "Brudi": "kumpel",
+      "Lappen": "tuch",
+      "Macker": "typ",
+      "Alman": "pünktlich",
+      "Gönn dir": "pause",
+      "Läuft bei dir": "weg",
+      "Erstmal": "stop",
+      "Tindern": "wischen",
+      "Swipe": "finger",
+      "Match": "paar",
+      "Flamer": "feuer",
+      "Noob": "start",
+      "Streamer": "kamera",
+      "Clutch": "griff",
+      "Camper": "zelt",
+      "Loot": "kiste",
+      "GG": "ende",
+      "EZ": "leicht",
+      "Ragequit": "wut",
+      "Lag": "stock",
+      "Hack": "code",
+      "Spam": "brief",
+      "Nerf": "weich",
+      "Buff": "pump",
+      "Meta": "blick",
+      "OP": "stark",
+      "Twerk": "popo",
+      "Thirsty": "durstig",
+      "Ghosting": "weg",
+      "DM": "post",
+      "Salty": "meer",
+      "Bae": "lieb",
+      "Sis": "schwester",
+      "Clapback": "antwort",
+      "Extra": "viel",
+      "Finna": "will",
+      "Glow up": "wechsel",
+      "Lowkey": "leise",
+      "Mood": "gefühl",
+      "Savage": "wild",
+      "Shook": "erschrocken",
+      "Slay": "töten",
+      "Sus": "komisch",
+      "Dank": "gut",
+      "Dope": "cool",
+      "Faded": "blass",
+      "Stoned": "high",
+      "Turnt": "party",
+      "Hyped": "aufgedreht",
+      "Lampe": "Glühfleck",
+      "Auto": "Rundlatscher",
+      "Telefon": "Quasselgerät",
+      "Tisch": "Holzplatte",
+      "Stuhl": "Hockdings",
+      "Fenster": "Glasloch",
+      "Tür": "Bewegungslücke",
+      "Haus": "Dachpuzzle",
+      "Baum": "Stammsuppe",
+      "Blume": "Farbklecks",
+      "Wasser": "Naßzeug",
+      "Feuer": "Heißer Freund",
+      "Küche": "Mampfplatz",
+      "Schule": "Blaupause",
+      "Computer": "Blinkklotz",
+      "Schrank": "Klamottengrab",
+      "Bett": "Lümmelplatz",
+      "Uhr": "Zeitfresser",
+      "Fahrrad": "Beinroller",
+      "Auto": "Knatterkasten"
+    };
+
+    let players = [];
+    let spies = [];
+    let word = "";
+    let timeLeft = 60;
+    let timerInterval = null;
+    let spyHint = true;
+    let currentPlayerIndex = 0;
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function startGame() {
+      const namesInput = document.getElementById("names").value.trim();
+      const spyCount = parseInt(document.getElementById("spies").value);
+      const roundTime = parseInt(document.getElementById("time").value);
+      spyHint = document.getElementById("spyHint").value === "true";
+      const playerCount = parseInt(document.getElementById("playerCount").value);
+
+      timeLeft = roundTime > 0 ? roundTime : 60;
+
+      // Spieler einlesen oder Standardnamen erzeugen
+      if (namesInput.length > 0) {
+        players = namesInput.split("\n").map(s => s.trim()).filter(s => s.length > 0);
+      } else {
+        players = [];
+        for (let i = 1; i <= playerCount; i++) {
+          players.push("Spieler " + i);
+        }
+      }
+
+      // Sicherheitscheck
+      if (spyCount >= players.length) {
+        alert("Es darf nicht mehr Spione geben als Spieler.");
+        return;
+      }
+      if (players.length < 3) {
+        alert("Mindestens 3 Spieler benötigt.");
+        return;
+      }
+
+      // Rollen zufällig verteilen
+      spies = [];
+      let indices = [...Array(players.length).keys()];
+      shuffleArray(indices);
+      spies = indices.slice(0, spyCount);
+
+      // Wort auswählen (ein Wort aus den Keys)
+      const keys = Object.keys(wordHints);
+      shuffleArray(keys);
+      word = keys[0];
+
+      currentPlayerIndex = 0;
+
+      // UI wechseln
+      document.getElementById("setup").classList.add("hidden");
+      document.getElementById("roleReveal").classList.remove("hidden");
+      document.getElementById("gameplay").classList.add("hidden");
+      document.getElementById("endScreen").classList.add("hidden");
+
+      preparePlayerReveal();
+    }
+
+    function preparePlayerReveal() {
+      document.getElementById("roleText").classList.add("hidden");
+      document.getElementById("nextButton").classList.add("hidden");
+      document.getElementById("revealButton").classList.remove("hidden");
+      document.getElementById("playerNumber").textContent = `Spieler ${currentPlayerIndex + 1} von ${players.length}: ${players[currentPlayerIndex]}`;
+      document.getElementById("roleText").textContent = "";
+    }
+
+    function revealRole() {
+      const isSpy = spies.includes(currentPlayerIndex);
+      const roleText = isSpy ? 
+        (spyHint ? `Du bist der Impostor! Hinweis: "${wordHints[word]}"` : "Du bist der SPION!") 
+        : `Du bist ein Crewmate. Das Wort lautet: "${word}"`;
+      const roleTextElement = document.getElementById("roleText");
+      roleTextElement.textContent = roleText;
+      roleTextElement.classList.remove("hidden");
+
+      document.getElementById("revealButton").classList.add("hidden");
+      document.getElementById("nextButton").classList.remove("hidden");
+    }
+
+    function nextPlayer() {
+      currentPlayerIndex++;
+      if (currentPlayerIndex >= players.length) {
+        // Alle Spieler haben ihre Rolle gesehen, Start der Runde
+        startRound();
+      } else {
+        preparePlayerReveal();
+      }
+    }
+
+    function startRound() {
+      document.getElementById("roleReveal").classList.add("hidden");
+      document.getElementById("gameplay").classList.remove("hidden");
+
+      document.getElementById("wordDisplay").textContent = word;
+      document.getElementById("starterInfo").textContent = players[0];
+
+      timeLeft = parseInt(document.getElementById("time").value);
+      updateTimerDisplay();
+
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          endRound();
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      document.getElementById("timer").textContent = timeLeft;
+    }
+
+    function skipTimer() {
+      clearInterval(timerInterval);
+      endRound();
+    }
+
+    function endRound() {
+      document.getElementById("gameplay").classList.add("hidden");
+      document.getElementById("endScreen").classList.remove("hidden");
+    }
+
+    function resetGame() {
+      clearInterval(timerInterval);
+      document.getElementById("endScreen").classList.add("hidden");
+      document.getElementById("setup").classList.remove("hidden");
+      document.getElementById("names").value = "";
+      document.getElementById("spies").value = "1";
+      document.getElementById("time").value = "60";
+      document.getElementById("spyHint").value = "true";
+      document.getElementById("playerCount").value = "4";
+
+      players = [];
+      spies = [];
+      word = "";
+      currentPlayerIndex = 0;
+    }
+  </script>
+</body>
+</html>
